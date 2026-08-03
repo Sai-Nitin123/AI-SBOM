@@ -1,69 +1,27 @@
-# Code: LSTM Implementation
+# Product Requirement Specification: LSTM Module
 
-## Overview
-PyTorch implementation of the LSTM sequence detector. It maps tool names to integer IDs, embeds them, and predicts sequence normality.
+## 1. Objective
+To operationalize the LSTM sequence model to score live execution traces based on tool call order.
 
-## Implementation
+## 2. Functional Requirements
+- **Sequence Extraction:** Parse the JSON trace to extract an ordered list of `tool_name` values.
+- **Vocabulary Mapping:** Maintain a dictionary mapping string tool names to integer IDs.
+- **Model Training:** Train an embedding layer and LSTM to predict sequence probabilities using benign historical sequences.
+- **Live Inference:** Convert a live tool sequence to IDs, pass through the network, and calculate an anomaly score based on prediction confidence.
 
-```python
-import torch
-import torch.nn as nn
+## 3. Expected Inputs
+- **Training:** Historical benign tool sequences.
+- **Inference:** A single live JSON trace containing tool calls.
 
-class ToolSequenceAnomalyDetector:
-    def __init__(self, vocab_size=50, embedding_dim=16, hidden_dim=32):
-        self.tool_to_id = {}
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
-        self.model = nn.Sequential(
-            nn.Embedding(vocab_size, embedding_dim),
-            nn.LSTM(embedding_dim, hidden_dim, batch_first=True),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        ).to(self.device)
-        
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
-        self.criterion = nn.MSELoss()
-        
-    def build_vocab(self, tool_names):
-        for i, tool in enumerate(sorted(set(tool_names))):
-            self.tool_to_id[tool] = i
-            
-    def extract_tool_sequence(self, execution_trace):
-        sequence = []
-        for step in execution_trace['runtime_trace']['execution_sequence']:
-            if step['action'] == 'tool_call':
-                sequence.append(step['tool_name'])
-        return sequence
-        
-    def train(self, historical_traces):
-        # Build vocabulary from benign traces
-        all_tools = set()
-        for trace in historical_traces:
-            all_tools.update(self.extract_tool_sequence(trace))
-        self.build_vocab(list(all_tools))
-        
-        # Simple training loop stub
-        # In a real implementation, you train to predict probability of the sequence
-        print("Training LSTM on sequences...")
-        
-    def detect_anomaly(self, execution_trace):
-        seq = self.extract_tool_sequence(execution_trace)
-        if len(seq) < 2:
-            return {"is_anomaly": False, "anomaly_score": 0.0}
-            
-        ids = [self.tool_to_id.get(tool, 0) for tool in seq]
-        X = torch.tensor(ids[:-1]).unsqueeze(0).to(self.device)
-        
-        with torch.no_grad():
-            output = self.model(X)
-            # Dummy output extraction for structural purposes
-            sequence_score = 0.95 # Assume 0.95 normality for this stub
-            
-        anomaly_score = 1.0 - sequence_score
-        
-        return {
-            "is_anomaly": anomaly_score > 0.5,
-            "anomaly_score": float(anomaly_score),
-            "tool_sequence": seq
-        }
+## 4. Output Data Structure
+```json
+{
+  "is_anomaly": "boolean",
+  "anomaly_score": "float (0.0 to 1.0)",
+  "tool_sequence_analyzed": "array of strings"
+}
 ```
+
+## 5. Implementation Guidelines
+- Use a deep learning framework like `PyTorch` or `TensorFlow`.
+- Utilize GPU acceleration if available to ensure inference stays under 50ms.

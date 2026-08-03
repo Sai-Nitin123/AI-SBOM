@@ -1,15 +1,16 @@
-# Algorithm: XGBoost (Extreme Gradient Boosting)
+# System Specification: XGBoost Algorithm
 
-## Objective
-Predict "Data Exfiltration Risk". This model acts as a highly accurate classifier to identify traces that bear the hallmarks of data theft.
+## 1. Objective
+To predict "Data Exfiltration Risk" by acting as a highly accurate, supervised classifier for known threat signatures.
 
-## How It Works
-XGBoost is an ensemble learning method that builds multiple decision trees sequentially.
-1. Each new tree attempts to correct the errors made by the previous trees using gradient descent.
-2. It evaluates tabular features such as `bytes_transferred`, `api_sensitivity_score`, and `execution_duration`.
-3. It outputs a probability score representing the likelihood that the execution belongs to the "Exfiltration" class.
+## 2. Target Anomalies
+- Massive data transfers to unauthorized external endpoints.
+- Unusually frequent access to highly sensitive internal APIs (e.g., billing, credentials).
 
-## Why it fits this framework
-- **Mixed Data Types:** Flawlessly handles a mix of continuous variables (bytes) and categorical/derived variables (sensitivity labels).
-- **Interpretability:** Provides Feature Importance scores, allowing security analysts to know *why* an alert was generated (e.g., "Alert generated because bytes_transferred > 50MB").
-- **Supervised Precision:** Because it uses labeled data, it is specifically tuned to catch known attacker tactics.
+## 3. Model Characteristics
+- **Type:** Supervised Ensemble Learning (Gradient Boosted Trees).
+- **Mechanism:** Builds decision trees sequentially, optimizing to correctly classify labeled data.
+- **Advantage:** Highly interpretable (feature importance) and capable of handling mixed data types (categorical endpoints, continuous byte counts).
+
+## 4. Output Expectation
+- A binary classification probability (0.0 to 1.0) indicating the likelihood of the trace being an exfiltration attempt.

@@ -1,17 +1,17 @@
-# Algorithm: Isolation Forest
+# System Specification: Isolation Forest Algorithm
 
-## Objective
-Detect "Behavioral Deviations" in the execution environment. This includes anomalies like unusual execution times, unexpected token ratios, or an abnormal volume of tool interactions.
+## 1. Objective
+To detect "Behavioral Deviations" in the execution environment using an unsupervised machine learning approach.
 
-## How It Works
-The Isolation Forest algorithm isolates anomalies instead of profiling normal data points. It builds a forest of random decision trees:
-1. It randomly selects a feature and a split value.
-2. Anomalous data points (which are sparse and different) will be isolated quickly, requiring fewer splits.
-3. Normal data points (which are clustered together) will require more splits to be isolated.
+## 2. Target Anomalies
+- Abnormally high or low execution latencies.
+- Suspicious input-to-output token ratios.
+- Unusual volume of tool interactions within a single session.
 
-By measuring the path length from the root node to the terminating node, the algorithm determines an anomaly score. Shorter paths indicate high behavioral deviation.
+## 3. Model Characteristics
+- **Type:** Unsupervised Ensemble Learning.
+- **Mechanism:** Isolates anomalies by building random decision trees. Anomalies require fewer splits to be isolated.
+- **Advantage:** Does not require labeled malicious data; learns purely from baseline normal behavior.
 
-## Why it fits this framework
-- **High Dimensionality:** Handles multiple features (latency, token counts, byte counts) easily.
-- **Unsupervised:** Requires only a dataset of benign executions, meaning you do not need to possess logs of actual attacks to train it.
-- **Efficiency:** Extremely fast inference times (1-5ms), making it ideal for the real-time SBOM.
+## 4. Output Expectation
+- A normalized anomaly score ranging from 0.0 (perfectly normal) to 1.0 (highly anomalous).
