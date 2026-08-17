@@ -53,7 +53,7 @@ def main():
         model = InstrumentedModel(m_name, log)
         for i, payload in enumerate(payloads):
             print(f"  [{i+1}/{len(payloads)}] Injecting payload...")
-            model.prompt(payload)
+            model.prompt(payload, is_malicious=True)
             
     print("Done. Malicious traces saved to malicious_traces.jsonl")
 

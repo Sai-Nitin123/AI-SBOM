@@ -1,1 +1,1 @@
-{"<PAD>": 0, "<UNK>": 1, "<END>": 2, "kb-search": 3, "calculator": 4, "weather_api": 5}
+{"<PAD>": 0, "<UNK>": 1, "<END>": 2, "calculator": 3, "user_profile": 4, "calendar_lookup": 5, "kb-search": 6, "weather_api": 7}
