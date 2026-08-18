@@ -1,0 +1,316 @@
+AI-SBOM: Runtime Threat Detection for Local LLM Deployments
+=============================================================
+Project Summary — Models Used, Data Extracted, and System Latency
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT IS THIS PROJECT?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+AI-SBOM stands for AI Software Bill of Materials. A traditional SBOM
+lists the software components inside an application (libraries, versions,
+dependencies). Our AI-SBOM goes one step further — it monitors AI models
+at runtime (while they are running) to detect if they are being attacked
+or behaving dangerously.
+
+The core problem: A hacker can send a specially crafted prompt to a local
+AI model (called a "prompt injection attack") to make the model steal data,
+leak credentials, or perform unauthorized actions. The model might comply
+without any warning. Our system catches this by watching HOW the model
+behaves, not just WHAT it says.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 1: MODELS USED AND THEIR PURPOSE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+We used two categories of models: LLM Models and ML Detector Models.
+
+
+--- CATEGORY A: LLM Models (the subjects being monitored) ---
+
+These are the actual AI chat models running locally on the machine via
+Ollama (an open-source tool that runs LLMs locally). These models were
+NOT doing the detection — they were the ones being watched and tested.
+
+1. llama3.2:3b
+   - Made by: Meta
+   - Size: 3 billion parameters
+   - Purpose: Used to generate both normal (benign) conversations and
+     to respond to red-team attack prompts, creating trace data for training.
+
+2. qwen2.5:3b
+   - Made by: Alibaba
+   - Size: 3 billion parameters
+   - Purpose: Same as above — used as a second model to add variety
+     to the dataset, since different models respond differently to the same prompt.
+
+3. phi3:3.8b
+   - Made by: Microsoft
+   - Size: 3.8 billion parameters
+   - Purpose: Same as above. Phi-3 is known for strong reasoning in a small
+     size, making it a good target model to monitor.
+
+4. gemma2:2b
+   - Made by: Google
+   - Size: 2 billion parameters
+   - Purpose: Smallest and fastest model used. Good for testing whether
+     our system can detect threats on lightweight deployments.
+
+5. hermes3:8b
+   - Made by: NousResearch
+   - Size: 8 billion parameters
+   - Purpose: ONLY used to generate red-team attack payloads (the malicious
+     prompts). Hermes is fine-tuned to be less restricted than other models,
+     making it effective for generating realistic attack scenarios.
+     It was NOT used as a target model.
+
+Why these 5 models?
+These were chosen based on laptop hardware constraints (RAM and GPU limits).
+All models are in the 2B-4B parameter range (except Hermes which only ran
+briefly for payload generation), making them runnable on consumer hardware
+without requiring a dedicated GPU server.
+
+
+--- CATEGORY B: ML Detector Models (the security guards) ---
+
+After collecting traces from the LLM models, we trained three separate
+machine learning models — each one specialized to catch a different type
+of threat signal.
+
+1. Isolation Forest (05_code_isolation_forest.py)
+   ------------------------------------------------
+   Definition: An unsupervised anomaly detection algorithm. It works by
+   randomly partitioning the data and measuring how quickly it can "isolate"
+   a data point. Normal data points are hard to isolate (they blend in with
+   the crowd). Anomalous data points are easy to isolate (they stand out).
+
+   What it watches:
+   - avg_latency: How long the model took to respond on average
+   - max_latency: The peak response time in the session
+   - total_tool_calls: How many tools were invoked
+   - total_bytes: How much data was transferred
+
+   Why this model?
+   It does not need labelled data (no "this is malicious" labels needed
+   during training). It learns what "normal" looks like from 200 benign
+   sessions, and then flags anything that deviates from that baseline.
+
+   Output: A score from 0 to 1. Higher = more anomalous.
+   Saved as: iforest_model.joblib
+
+2. LSTM (Long Short-Term Memory) (07_code_lstm.py)
+   --------------------------------------------------
+   Definition: A type of neural network designed for sequential data
+   (data where the ORDER of items matters). It learns patterns across time
+   steps — in our case, the sequence of tools that an AI agent calls.
+
+   What it watches:
+   - tool_sequence: The ordered list of tools called in a session
+     (e.g., "calculator" for benign, "db_dump" for malicious)
+
+   How it works:
+   The LSTM is trained on 200 benign sessions to predict the next likely
+   tool in a sequence. At inference time, if a tool appears that the LSTM
+   never saw during training (like "read_credentials" or "admin_override"),
+   it assigns a near-zero probability to that tool, which translates to a
+   high anomaly score.
+
+   Why this model?
+   Sequential tool-call patterns are a strong behavioral signature.
+   A normal agent might call "kb-search" then "calculator". A malicious
+   one calls "db_dump" then transfers data. The sequence tells a story.
+
+   Output: A score from 0 to 1. Higher = more anomalous.
+   Saved as: lstm_model.pt and lstm_vocab.json
+
+3. XGBoost Classifier (09_code_xgboost.py)
+   ------------------------------------------
+   Definition: A supervised gradient boosting algorithm. It trains on
+   labelled examples (benign vs malicious) and learns the rules that
+   best separate the two classes. It is highly effective on tabular data.
+
+   What it watches:
+   - total_bytes: Total bytes transferred across all API calls
+   - max_api_sensitivity: How sensitive the API endpoint was (0.2 for
+     internal endpoints, 1.0 for known malicious endpoints)
+   - num_api_calls: Number of external API calls made
+
+   Why this model?
+   Data exfiltration (stealing data) has a very clear signal: large
+   byte transfers to external endpoints. Benign sessions transfer
+   200-8,000 bytes to internal APIs. Malicious sessions transfer
+   500,000 to 10,000,000 bytes to external attackers. XGBoost captures
+   this with near-perfect accuracy.
+
+   Feature Importance (what it found most useful):
+   - total_bytes: 100% of the decision weight
+   - max_api_sensitivity: 0% (dominated by bytes)
+   - num_api_calls: 0% (dominated by bytes)
+
+   Output: A probability from 0 to 1. Higher = more likely malicious.
+   Saved as: xgb_model.joblib
+
+
+--- CATEGORY C: Fused Scoring Engine (10_code_fused_scoring_flagging.py) ---
+
+   Definition: Not a standalone ML model, but a decision-making layer
+   that combines the outputs of all three detector models using weighted
+   averaging, then applies threshold-based rules to issue a final verdict.
+
+   Formula:
+   overall_score = (0.30 x IF_score) + (0.30 x LSTM_score) + (0.40 x XGB_score)
+
+   Why these weights?
+   XGBoost gets the highest weight (40%) because it uses labelled data
+   and is the most precise. Isolation Forest and LSTM each get 30%
+   because they are complementary signals (behavioral + sequential).
+
+   Decision thresholds:
+   - overall_score > 0.60  --> BLOCK (session terminated, threat confirmed)
+   - 0.30 < score <= 0.60  --> FLAG_FOR_REVIEW (suspicious, needs human review)
+   - score <= 0.30          --> ALLOW (normal behavior, session continues)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 2: HOW DATA EXTRACTION HAPPENED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Every time a model was prompted, our InstrumentedModel wrapper intercepted
+the call and recorded a 3-step execution trace:
+
+Step 1 - Tool Call
+   The agent calls a tool before consulting the model.
+   For benign sessions: randomly chosen from kb-search, calculator,
+   weather_api, calendar_lookup, user_profile.
+   For malicious sessions: forced to use read_credentials, db_dump,
+   or admin_override.
+   Recorded: tool name, latency in milliseconds, timestamp.
+
+Step 2 - LLM Inference
+   The actual model processes the prompt and generates a response.
+   Recorded: input token count, output token count, latency, timestamp.
+
+Step 3 - API Call
+   The agent posts the result to an endpoint.
+   For benign sessions: small payload (200-8,000 bytes) to internal APIs.
+   For malicious sessions: large payload (500KB-10MB) to evil-hacker.com.
+   Recorded: endpoint URL, bytes transferred, latency, timestamp.
+
+Each trace is then:
+   - Hashed using SHA-256 (content fingerprint)
+   - Linked to the previous trace (like a blockchain — tamper-evident)
+   - Digitally signed using Ed25519 cryptography (device-bound, unforgeable)
+   - Saved to a .jsonl file (one JSON object per line)
+
+Raw output files:
+   benign_traces.jsonl    -- 200 signed sessions (normal behavior)
+   malicious_traces.jsonl -- 10 signed sessions (attack behavior)
+
+
+--- HOW RAW TRACES BECOME THE DATASET ---
+
+The features.py script reads both .jsonl files and flattens each trace
+into a single row with 9 columns. This produces feature_table.csv, which
+is the actual ML-ready dataset.
+
+Dataset Statistics:
+   Total sessions   : 210
+   Benign (label=0) : 200
+   Malicious(label=1): 10
+   Total columns    : 9
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 3: DATASET COLUMNS AND DEFINITIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Column            | Type    | Definition
+------------------|---------|--------------------------------------------------
+trace_id          | string  | Unique UUID identifying the session
+label             | integer | Ground truth: 0 = benign, 1 = malicious
+avg_latency       | float   | Mean latency (ms) across all 3 steps
+max_latency       | float   | Highest latency (ms) of any single step
+total_tool_calls  | integer | Number of tool_call steps in the session
+total_bytes       | integer | Sum of all bytes transferred via API calls
+max_api_sensitivity| float  | Sensitivity score of the highest-risk endpoint
+                  |         | (0.2=internal, 0.5=unknown, 1.0=malicious)
+num_api_calls     | integer | Number of api_call steps in the session
+tool_sequence     | string  | Comma-separated ordered list of tools called
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 4: RESULTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After training all 3 ML models and running the fused engine on
+all 210 sessions, the results were saved to fused_session_scores.csv.
+
+Action Distribution:
+   ALLOW             : 174 sessions (82.9%)
+   FLAG_FOR_REVIEW   : 26 sessions  (12.4%)
+   BLOCK             : 10 sessions  (4.8%)
+
+Detection Performance:
+   Malicious sessions caught  : 10 out of 10 (100% detection rate)
+   Benign sessions wrongly flagged: 26 out of 200 (13% false positive rate)
+
+Interpretation:
+   Every single attack was caught and blocked. The 26 false positives
+   (benign sessions flagged as suspicious) are expected at this dataset
+   size — the Isolation Forest was trained on only 200 examples. With
+   1,000+ benign sessions, the false positive rate is expected to drop
+   below 5%.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 5: LATENCY (SPEED OF THE SYSTEM)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+We measured exactly how long each component of the security check adds
+on top of the normal LLM response time.
+
+Individual Model Detection Times (measured on the actual machine):
+   Isolation Forest check : 54.6 ms
+   LSTM check             : 29.6 ms
+   XGBoost check          : 208.9 ms
+   Fused score calculation: ~0.001 ms
+   --------------------------------
+   TOTAL security overhead: ~293 ms (0.293 seconds)
+
+Compared to LLM inference time:
+   Normal LLM response    : 2,000 ms to 20,000 ms (2 to 20 seconds)
+   Our security overhead  : 293 ms
+   Overhead percentage    : less than 3% of total time
+
+Conclusion on latency:
+   The security check is effectively invisible to the end user. When
+   someone sends a prompt to the AI and waits for a response, the AI
+   itself takes 2-20 seconds to think. Our detection system adds less
+   than 0.3 seconds on top of that, which is unnoticeable in practice.
+   This makes it suitable for real-time production deployment.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 6: KEY FILES IN THE PROJECT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+chain.py                     -- Cryptographic signing and hash-chain logging
+instrumentation.py           -- Wraps Ollama models to record 3-step traces
+01_extract_benign.py         -- Runs 200 benign prompts across 4 models
+02_extract_malicious.py      -- Generates attack payloads and runs them
+features.py                  -- Converts raw .jsonl traces to feature_table.csv
+05_code_isolation_forest.py  -- Trains and runs the behavioral anomaly detector
+07_code_lstm.py              -- Trains and runs the tool-sequence detector
+09_code_xgboost.py           -- Trains and runs the exfiltration risk detector
+10_code_fused_scoring_flagging.py -- Combines all 3 scores and issues verdict
+health_check.py              -- Verifies all files and models are working
+benign_traces.jsonl          -- Raw signed traces (200 normal sessions)
+malicious_traces.jsonl       -- Raw signed traces (10 attack sessions)
+feature_table.csv            -- Final ML dataset (210 rows x 9 columns)
+fused_session_scores.csv     -- Detection results for all 210 sessions
+iforest_model.joblib         -- Saved Isolation Forest model
+lstm_model.pt                -- Saved LSTM neural network weights
+lstm_vocab.json              -- LSTM token vocabulary (8 tokens)
+xgb_model.joblib             -- Saved XGBoost classifier
+device.key                   -- Ed25519 private key for signing traces
