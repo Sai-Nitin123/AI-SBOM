@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI-SBOM Global SOC Monitor</title>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Anime JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <!-- Full Screen Enterprise SOC Monitor -->
+    <div class="soc-container">
+      <header class="soc-header glass-header">
+        <div class="logo-area">
+          <i data-lucide="shield-check" class="brand-icon"></i>
+          <div>
+            <h1>AI-SBOM <span class="badge">PRO</span></h1>
+            <p class="subtitle">Global Interceptor & Threat Detection</p>
+          </div>
+        </div>
+        
+        <div class="global-stats">
+          <div class="stat-box">
+            <span class="stat-label">Total Traces</span>
+            <span class="stat-value" id="stat-total">0</span>
+          </div>
+          <div class="stat-box warning">
+            <span class="stat-label">Flagged</span>
+            <span class="stat-value" id="stat-flagged">0</span>
+          </div>
+          <div class="stat-box danger">
+            <span class="stat-label">Blocked</span>
+            <span class="stat-value" id="stat-blocked">0</span>
+          </div>
+          <div class="status-indicator online">
+            <span class="pulse"></span> Intercepting Port 11434
+          </div>
+        </div>
+      </header>
+      
+      <!-- Live Feed Container -->
+      <main class="soc-feed">
+        <div class="feed-layout">
+          <!-- Left side: Live Feed -->
+          <div class="live-stream" id="live-feed">
+            <!-- Trace Cards injected here -->
+            <div class="empty-state">
+              <i data-lucide="activity"></i>
+              <p>Listening for Ollama API traffic...</p>
+              <small>Point your chat apps to http://localhost:8000</small>
+            </div>
+          </div>
+          
+          <!-- Right side: System Status / Metrics -->
+          <aside class="system-metrics">
+            <div class="metric-card">
+              <h3><i data-lucide="cpu"></i> ML Engines</h3>
+              <ul class="engine-list">
+                <li><i data-lucide="check-circle-2" class="ok"></i> Isolation Forest (Behavioral)</li>
+                <li><i data-lucide="check-circle-2" class="ok"></i> LSTM (Sequence)</li>
+                <li><i data-lucide="check-circle-2" class="ok"></i> XGBoost (Exfiltration)</li>
+                <li><i data-lucide="check-circle-2" class="ok"></i> Pre-scan Heuristics</li>
+              </ul>
+            </div>
+            <div class="metric-card proxy-info">
+              <h3><i data-lucide="network"></i> Proxy Active</h3>
+              <p>The AI-SBOM middleware is actively intercepting all calls to <code>/api/generate</code> and <code>/api/chat</code>.</p>
+              <div class="code-snippet">
+                <code>curl -d '{"model":"llama3.2:3b", "prompt":"hello"}' http://localhost:8000/api/generate</code>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+    
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

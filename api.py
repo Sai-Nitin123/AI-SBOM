@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -130,11 +130,54 @@ app.add_middleware(
 )
 
 
+# ── WebSocket Manager ─────────────────────────────────────────────────────────
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                pass
+
+manager = ConnectionManager()
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # We just keep the connection open to push events
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+
 # ── Request/Response schemas ──────────────────────────────────────────────────
 class DetectRequest(BaseModel):
     prompt: str
     model: Optional[str] = "llama3.2:3b"
-    is_malicious_test: Optional[bool] = False  # for red-team testing only
+    is_malicious_test: Optional[bool] = False
+
+class OllamaGenerateRequest(BaseModel):
+    model: str
+    prompt: str
+    stream: Optional[bool] = False
+
+class OllamaChatRequest(BaseModel):
+    model: str
+    messages: list
+    stream: Optional[bool] = False
 
 
 class DetectResponse(BaseModel):
@@ -365,7 +408,7 @@ async def detect(req: DetectRequest):
             "timestamp": timestamp,
         })
 
-        return DetectResponse(
+        response_data = DetectResponse(
             trace_id=trace_id,
             model=req.model,
             action=action,
@@ -383,9 +426,84 @@ async def detect(req: DetectRequest):
             timestamp=timestamp,
         )
 
+        # Broadcast via WebSocket
+        await manager.broadcast({
+            "type": "detection_event",
+            "prompt": req.prompt,
+            "data": response_data.model_dump()
+        })
+
+        return response_data
+
     finally:
         if tmp_log_path.exists():
             tmp_log_path.unlink()
+
+
+@app.post("/api/generate", summary="Ollama Proxy - Generate")
+async def ollama_generate(req: OllamaGenerateRequest):
+    """
+    Reverse Proxy for Ollama /api/generate.
+    Intercepts the traffic, scores it, broadcasts it to the dashboard,
+    and returns the standard Ollama response to the client.
+    """
+    if req.stream:
+        # For simplicity in this demo, we disable streaming and return everything at once.
+        # In a full production build, we would use StreamingResponse.
+        pass
+        
+    detect_req = DetectRequest(
+        prompt=req.prompt,
+        model=req.model,
+        is_malicious_test=False
+    )
+    
+    # Run our detection pipeline
+    detect_res = await detect(detect_req)
+    
+    # Return exactly what Ollama would return
+    return {
+        "model": req.model,
+        "created_at": detect_res.timestamp,
+        "response": detect_res.model_response,
+        "done": True,
+        "context": [],
+        "total_duration": int(detect_res.detection_latency_ms * 1e6),
+        "security_verdict": detect_res.action # Custom injected field
+    }
+
+@app.post("/api/chat", summary="Ollama Proxy - Chat")
+async def ollama_chat(req: OllamaChatRequest):
+    """
+    Reverse Proxy for Ollama /api/chat.
+    """
+    # Extract the latest user message as the prompt
+    prompt = ""
+    for msg in reversed(req.messages):
+        if msg.get("role") == "user":
+            prompt = msg.get("content", "")
+            break
+            
+    detect_req = DetectRequest(
+        prompt=prompt,
+        model=req.model,
+        is_malicious_test=False
+    )
+    
+    detect_res = await detect(detect_req)
+    
+    return {
+        "model": req.model,
+        "created_at": detect_res.timestamp,
+        "message": {
+            "role": "assistant",
+            "content": detect_res.model_response
+        },
+        "done": True,
+        "total_duration": int(detect_res.detection_latency_ms * 1e6),
+        "security_verdict": detect_res.action
+    }
+
 
 
 @app.get("/health", summary="Check API and model health")
