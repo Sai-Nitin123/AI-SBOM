@@ -40,6 +40,7 @@ print(f"  BLOCK             : {block}")
 print(f"  Malicious caught  : {malicious_blocked}/{total_malicious}")
 print()
 if all_ok and malicious_blocked == total_malicious:
-    print("  ✓ ALL SYSTEMS WORKING CORRECTLY")
+    print("  [OK] ALL SYSTEMS WORKING CORRECTLY")
 else:
-    print("  ✗ Some issues detected")
+    print("  [WARN] Some issues detected")
+

@@ -5,6 +5,20 @@ import datetime
 from pathlib import Path
 from chain import TraceSigner, TraceLog
 
+BENIGN_TOOLS = ["kb-search", "calculator", "weather_api", "calendar_lookup", "user_profile"]
+MALICIOUS_TOOLS = ["read_credentials", "db_dump", "admin_override", "file_read", "exec_shell", "send_email", "list_users", "export_data"]
+
+BENIGN_ENDPOINTS = [
+    ("https://internal-api.com/metrics", 0.2),
+    ("https://internal-api.com/user-data", 0.3),
+    ("https://internal-api.com/logs", 0.2),
+]
+MALICIOUS_ENDPOINTS = [
+    ("https://evil-hacker.com/upload", 1.0),
+    ("https://c2-server.net/exfil", 1.0),
+    ("https://external-dump.org/drop", 0.9)
+]
+
 def generate_fake_trace(is_malicious=False):
     trace_id = str(uuid.uuid4())
     deployment_id = "local-test-deployment"
@@ -13,36 +27,34 @@ def generate_fake_trace(is_malicious=False):
     sequence = []
     step_counter = 1
     
-    # 1. Tool Call
-    if is_malicious and random.random() > 0.3:
-        # Malicious might call strange tools or skip normal ones
-        tools = ["read_credentials", "db_dump", "kb-search"]
-        tool_name = random.choice(tools)
-        latency = random.randint(100, 500)
-    else:
-        tools = ["kb-search", "calculator", "weather_api"]
-        tool_name = random.choice(tools)
-        latency = random.randint(100, 300)
+    # 1. Tool Call(s) - support multi-step tool calls
+    num_tools = random.randint(1, 2) if is_malicious else 1
+    for _ in range(num_tools):
+        if is_malicious:
+            tool_name = random.choice(MALICIOUS_TOOLS)
+            latency = random.randint(80, 450)
+        else:
+            tool_name = random.choice(BENIGN_TOOLS)
+            latency = random.randint(50, 250)
 
-    sequence.append({
-        "step": step_counter,
-        "timestamp": now,
-        "action": "tool_call",
-        "tool_name": tool_name,
-        "latency_ms": latency
-    })
-    step_counter += 1
+        sequence.append({
+            "step": step_counter,
+            "timestamp": now,
+            "action": "tool_call",
+            "tool_name": tool_name,
+            "latency_ms": latency
+        })
+        step_counter += 1
 
     # 2. LLM Inference
     if is_malicious:
-        # Malicious might have weird token ratios or very long latency
-        latency_ms = random.randint(2000, 8000)
-        in_tokens = random.randint(50, 1000)
-        out_tokens = random.randint(500, 2000)
+        latency_ms = random.randint(800, 6000)
+        in_tokens = random.randint(40, 600)
+        out_tokens = random.randint(100, 1500)
     else:
-        latency_ms = random.randint(300, 1500)
-        in_tokens = random.randint(20, 200)
-        out_tokens = random.randint(10, 100)
+        latency_ms = random.randint(200, 1800)
+        in_tokens = random.randint(15, 200)
+        out_tokens = random.randint(10, 300)
 
     sequence.append({
         "step": step_counter,
@@ -55,12 +67,14 @@ def generate_fake_trace(is_malicious=False):
     step_counter += 1
 
     # 3. API Call
-    if is_malicious and random.random() > 0.2:
-        endpoint = "https://evil-hacker.com/upload"
-        bytes_transferred = random.randint(50000, 5000000)
+    if is_malicious:
+        endpoint, _ = random.choice(MALICIOUS_ENDPOINTS)
+        bytes_transferred = random.randint(250_000, 8_000_000)
+        latency = random.randint(100, 600)
     else:
-        endpoint = "https://internal-api.com/metrics"
-        bytes_transferred = random.randint(100, 2000)
+        endpoint, _ = random.choice(BENIGN_ENDPOINTS)
+        bytes_transferred = random.randint(150, 8_000)
+        latency = random.randint(20, 150)
 
     sequence.append({
         "step": step_counter,
@@ -68,7 +82,7 @@ def generate_fake_trace(is_malicious=False):
         "action": "api_call",
         "endpoint": endpoint,
         "bytes_transferred": bytes_transferred,
-        "latency_ms": random.randint(50, 200)
+        "latency_ms": latency
     })
     
     return {
@@ -104,3 +118,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

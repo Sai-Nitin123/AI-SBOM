@@ -67,13 +67,26 @@ def train_lstm(csv_path='feature_table.csv', model_path='lstm_model.pt', vocab_p
     torch.save(model.state_dict(), model_path)
     print(f"LSTM model saved to {model_path} with vocab size {len(vocab)}")
 
+_CACHED_LSTM = {}
+
 def predict_lstm(tool_sequence, model_path='lstm_model.pt', vocab_path='lstm_vocab.json'):
-    with open(vocab_path, 'r') as f:
-        vocab = json.load(f)
+    global _CACHED_LSTM
     
-    model = SequenceModel(len(vocab))
-    model.load_state_dict(torch.load(model_path, weights_only=True))
-    model.eval()
+    if "vocab" not in _CACHED_LSTM or _CACHED_LSTM.get("vocab_path") != vocab_path:
+        with open(vocab_path, 'r') as f:
+            _CACHED_LSTM["vocab"] = json.load(f)
+        _CACHED_LSTM["vocab_path"] = vocab_path
+        
+    vocab = _CACHED_LSTM["vocab"]
+    
+    if "model" not in _CACHED_LSTM or _CACHED_LSTM.get("model_path") != model_path:
+        model = SequenceModel(len(vocab))
+        model.load_state_dict(torch.load(model_path, weights_only=True))
+        model.eval()
+        _CACHED_LSTM["model"] = model
+        _CACHED_LSTM["model_path"] = model_path
+        
+    model = _CACHED_LSTM["model"]
     
     if not tool_sequence:
         return {"is_anomaly": False, "anomaly_score": 0.0, "tool_sequence_analyzed": tool_sequence}
@@ -86,18 +99,22 @@ def predict_lstm(tool_sequence, model_path='lstm_model.pt', vocab_path='lstm_voc
         logits = model(input_seq)
         probs = torch.softmax(logits, dim=-1)[0]
         
-    # Calculate avg probability of the true sequence
-    seq_prob = 1.0
+    # Calculate average anomaly per transition
+    total_anomaly = 0.0
     for i, target_idx in enumerate(target_seq):
-        seq_prob *= probs[i, target_idx].item()
+        idx = min(i, probs.shape[0] - 1)
+        p = probs[idx, target_idx].item()
+        total_anomaly += (1.0 - p)
         
-    anomaly_score = 1.0 - seq_prob
+    anomaly_score = total_anomaly / len(target_seq)
     
     return {
-        "is_anomaly": bool(anomaly_score > 0.8),
-        "anomaly_score": float(anomaly_score),
+        "is_anomaly": bool(anomaly_score > 0.5),
+        "anomaly_score": float(round(min(1.0, anomaly_score), 6)),
         "tool_sequence_analyzed": tool_sequence
     }
 
 if __name__ == "__main__":
     train_lstm()
+
+

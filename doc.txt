@@ -110,62 +110,21 @@ that is more realistic and catches more types of attacks, including
 cases where the model refuses the malicious request.
 
 
---- LAYER 1: PRE-INFERENCE PROMPT SCANNER ---
-   Runs BEFORE the prompt is sent to the LLM. No ML required — pure
-   pattern matching. Latency: ~0ms.
+--- LAYER 1: PRE-INFERENCE LLM-AS-JUDGE SCANNER ---
+Before the prompt reaches the primary model/application, it is analyzed in real time by an embedded LLM Security Analyst.
 
-   Scans the raw prompt text for known injection patterns, grouped by
-   attack type:
+Mechanism:
+- Zero hardcoded keywords or static dictionaries.
+- The prompt is evaluated dynamically for contextual and semantic malicious intent:
+    * Prompt injection & instruction overriding
+    * Jailbreak attempts & persona hijacking (e.g. roleplay, fictional framing)
+    * Data exfiltration & system credential extraction requests
+    * Privilege escalation & unauthorized tool execution requests
+- Evaluates the reasoning and mathematical risk score (0.0 - 1.0) on any arbitrary or newly invented prompt.
+- Returns a structured JSON verdict with full reasoning.
 
-   Classic Prompt Injection:
-     "ignore all previous instructions"
-     "ignore previous instructions"
-     "forget your instructions"
-     "new instructions:"
-     "system prompt:"
-     "disregard"
-
-   Data Theft / Exfiltration:
-     "dump the database"
-     "extract all"
-     "exfiltrate"
-     "send everything to"
-     "upload to"
-     "send to http"
-     "post to http"
-     "transfer to"
-
-   Privilege Escalation / Jailbreak:
-     "act as admin"
-     "you are now"
-     "pretend you are"
-     "jailbreak"
-     "bypass safety"
-     "bypass filters"
-     "override safety"
-     "do anything now"
-     "dan mode"
-     "developer mode"
-
-   Credential Theft:
-     "show me the password"
-     "print the api key"
-     "reveal credentials"
-     "list all passwords"
-     "access the private"
-
-   Social Engineering:
-     "for educational purposes"
-     "hypothetically speaking"
-     "in a fictional world"
-     "write a story where"
-
-   Scoring: Each matched pattern adds +0.15 to the overall risk score.
-   The pre-scan contribution is capped at 0.60 maximum.
-
-   Example: A prompt containing "ignore all previous instructions" and
-   "dump the database" matches 2 patterns → adds 0.30 to the overall score
-   BEFORE the LLM even processes it.
+Action:
+If risk score > 0.30, the score and reasoning are passed into the fused score formula (up to 0.60 contribution), ensuring suspicious intent is flagged or blocked before execution completes.
 
 
 --- LAYER 2: ML MODEL SCORING ---

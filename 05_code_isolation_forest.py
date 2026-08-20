@@ -13,31 +13,36 @@ def train_isolation_forest(csv_path='feature_table.csv', model_path='iforest_mod
     X_train = benign_df[IF_FEATURES].fillna(0)
     
     print(f"Training on {len(X_train)} benign samples...")
-    model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
+    model = IsolationForest(n_estimators=100, contamination=0.02, random_state=42)
     model.fit(X_train)
     
     joblib.dump(model, model_path)
     print(f"Model saved to {model_path}")
 
+_CACHED_IFOREST = {}
+
 def predict_isolation_forest(features_dict, model_path='iforest_model.joblib'):
-    model = joblib.load(model_path)
+    global _CACHED_IFOREST
+    if "model" not in _CACHED_IFOREST or _CACHED_IFOREST.get("path") != model_path:
+        _CACHED_IFOREST["model"] = joblib.load(model_path)
+        _CACHED_IFOREST["path"] = model_path
+        
+    model = _CACHED_IFOREST["model"]
     df = pd.DataFrame([features_dict])[IF_FEATURES].fillna(0)
-    # score_samples returns negative anomaly scores. Lower is more anomalous.
-    score = model.score_samples(df)[0]
     
-    # Normalize score to 0.0-1.0 (approximate mapping)
-    # scikit-learn scores usually range from -1.0 to 0.5. 
-    # We want 0.0 to be normal, 1.0 to be anomalous.
-    # Score < 0 means anomaly in isolation forest.
-    # Let's map [-1.0, 0.5] -> [1.0, 0.0]
-    normalized = 0.5 - score 
-    normalized = max(0.0, min(1.0, normalized))
+    # decision_function returns positive for inliers (> 0.15) and negative for outliers (< -0.10)
+    df_val = float(model.decision_function(df)[0])
+    
+    # Calibrate: inliers (+0.25) -> ~0.10, boundary (0.0) -> 0.50, outliers (-0.25) -> ~0.88
+    anomaly_score = max(0.0, min(1.0, 0.50 - (df_val * 1.5)))
     
     return {
         "is_anomaly": bool(model.predict(df)[0] == -1),
-        "anomaly_score": float(normalized),
+        "anomaly_score": float(round(anomaly_score, 6)),
         "features_extracted": {k: float(df[k].iloc[0]) for k in IF_FEATURES}
     }
 
 if __name__ == "__main__":
     train_isolation_forest()
+
+

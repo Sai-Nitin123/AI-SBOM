@@ -1,4 +1,4 @@
-import { createIcons, ShieldAlert, AlertTriangle, ShieldCheck, Activity, Cpu, CheckCircle2, Network, Info } from 'lucide';
+import { createIcons, ShieldAlert, AlertTriangle, ShieldCheck, Activity, Cpu, CheckCircle2, Network, Info, Brain } from 'lucide';
 
 // Initialize Icons
 createIcons({
@@ -10,7 +10,8 @@ createIcons({
     Cpu,
     CheckCircle2,
     Network,
-    Info
+    Info,
+    Brain
   }
 });
 
@@ -89,6 +90,10 @@ function handleDetectionEvent(event) {
         <span class="score-val" style="color: ${getScoreColor(data.overall_score)}">${data.overall_score.toFixed(2)}</span>
       </div>
       <div class="score-item">
+        <span class="score-label">LLM Judge</span>
+        <span class="score-val" style="color: ${getScoreColor(data.pre_scan_score)}">${data.pre_scan_score.toFixed(2)}</span>
+      </div>
+      <div class="score-item">
         <span class="score-label">Behavior (IF)</span>
         <span class="score-val">${data.if_score.toFixed(2)}</span>
       </div>
@@ -101,6 +106,11 @@ function handleDetectionEvent(event) {
         <span class="score-val">${data.xgb_score.toFixed(3)}</span>
       </div>
     </div>
+    ${data.pre_scan_triggers && data.pre_scan_triggers.length > 0 ? `
+    <div class="judge-reasoning">
+      <i data-lucide="brain" style="width:16px; height:16px; min-width:16px;"></i>
+      <span>${data.pre_scan_triggers[0]}</span>
+    </div>` : ''}
     <div class="trace-explanation">
       <i data-lucide="info" style="width:16px; height:16px; min-width:16px;"></i> 
       <span>${data.explanation}</span>

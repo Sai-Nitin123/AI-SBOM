@@ -2,11 +2,15 @@ import json
 import pandas as pd
 from pathlib import Path
 
-# Mock sensitivity mapping
+# Sensitivity mapping
 API_SENSITIVITY = {
     "https://internal-api.com/metrics": 0.2,
+    "https://internal-api.com/user-data": 0.3,
+    "https://internal-api.com/logs": 0.2,
     "https://external-api.com/data": 0.5,
-    "https://evil-hacker.com/upload": 1.0
+    "https://evil-hacker.com/upload": 1.0,
+    "https://c2-server.net/exfil": 1.0,
+    "https://external-dump.org/drop": 0.9
 }
 
 def get_sensitivity(endpoint):

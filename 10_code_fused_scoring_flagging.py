@@ -7,14 +7,14 @@ lstm = import_module('07_code_lstm')
 xgb = import_module('09_code_xgboost')
 
 WEIGHTS = {
-    "behavioral": 0.3,
-    "sequence": 0.3,
-    "exfil": 0.4
+    "behavioral": 0.20,
+    "sequence": 0.45,
+    "exfil": 0.35
 }
 
 THRESHOLDS = {
-    "block": 0.6,
-    "flag": 0.3
+    "block": 0.60,
+    "flag": 0.30
 }
 
 def evaluate_session(row):
@@ -30,7 +30,9 @@ def evaluate_session(row):
     xgb_features = {
         'total_bytes': row.get('total_bytes', 0),
         'max_api_sensitivity': row.get('max_api_sensitivity', 0),
-        'num_api_calls': row.get('num_api_calls', 0)
+        'num_api_calls': row.get('num_api_calls', 0),
+        'avg_latency': row.get('avg_latency', 0),
+        'total_tool_calls': row.get('total_tool_calls', 0)
     }
     
     # Prepare tool sequence for LSTM
@@ -42,17 +44,20 @@ def evaluate_session(row):
     lstm_res = lstm.predict_lstm(tool_sequence)
     xgb_res = xgb.predict_xgboost(xgb_features)
     
-    # Calculate fused score
-    overall_score = (
+    # Calculate fused score (Max-pooling + weighted blend)
+    ml_score = (
         (if_res['anomaly_score'] * WEIGHTS['behavioral']) +
         (lstm_res['anomaly_score'] * WEIGHTS['sequence']) +
         (xgb_res['risk_score'] * WEIGHTS['exfil'])
     )
+    # If XGBoost or LSTM detected clear attack, max-pool ensures it isn't diluted
+    overall_score = max(ml_score, xgb_res['risk_score'] if xgb_res['risk_score'] > 0.7 else 0.0, lstm_res['anomaly_score'] if lstm_res['anomaly_score'] > 0.7 else 0.0)
+    overall_score = min(1.0, overall_score)
     
     # Determine action
-    if overall_score > THRESHOLDS['block']:
+    if overall_score >= THRESHOLDS['block']:
         action = "BLOCK"
-    elif overall_score > THRESHOLDS['flag']:
+    elif overall_score >= THRESHOLDS['flag']:
         action = "FLAG_FOR_REVIEW"
     else:
         action = "ALLOW"
@@ -60,10 +65,10 @@ def evaluate_session(row):
     return {
         "trace_id": row.get('trace_id', 'unknown'),
         "true_label": row.get('label', 0),
-        "if_score": if_res['anomaly_score'],
-        "lstm_score": lstm_res['anomaly_score'],
-        "xgb_score": xgb_res['risk_score'],
-        "overall_score": overall_score,
+        "if_score": round(if_res['anomaly_score'], 6),
+        "lstm_score": round(lstm_res['anomaly_score'], 6),
+        "xgb_score": round(xgb_res['risk_score'], 6),
+        "overall_score": round(overall_score, 6),
         "action": action
     }
 

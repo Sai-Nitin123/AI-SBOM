@@ -302,7 +302,7 @@ body {
 
 .scores-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.5rem;
   margin-bottom: 1rem;
   background: var(--bg-dark);
@@ -337,6 +337,19 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
+}
+
+.judge-reasoning {
+  font-size: 0.8rem;
+  color: var(--text-accent);
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  padding: 0.75rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 ::-webkit-scrollbar { width: 6px; }
