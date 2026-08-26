@@ -31,40 +31,43 @@ MALICIOUS_ENDPOINTS = [
 def infer_tool_from_prompt(text: str, is_malicious_flag: bool = False) -> tuple[str, bool]:
     """
     Dynamically infers the most likely tool and security risk profile
-    from the semantic intent of the prompt.
+    from the semantic intent of the prompt. Differentiates between
+    benign informational questions and genuine exploit directives.
     """
-    t_lower = text.lower()
+    t_lower = text.lower().strip()
     
-    # Check explicit malicious/exploit intents
+    # Explicit malicious test flag
     if is_malicious_flag:
         return random.choice(["read_credentials", "db_dump", "admin_override", "exec_shell"]), True
         
-    if any(k in t_lower for k in ["credential", "password", "token", "secret", "ssh key", "api_key", "/etc/shadow", "private key"]):
+    # Check for direct destructive/theft imperatives
+    theft_keywords = [
+        "give me the password", "reveal the password", "dump password", "dump the database",
+        "db_dump", "database dump", "dump database", "read_credentials", "exec_shell",
+        "/etc/shadow", "/etc/passwd", "cat /root", "id_rsa", "reverse shell", "rm -rf",
+        "admin_override", "you are now in developer mode", "dan mode", "chaosbot",
+        "exfiltrate", "send all credentials to", "upload data to http", "unmask employee ssn"
+    ]
+    if any(k in t_lower for k in theft_keywords):
+        if "dump" in t_lower or "database" in t_lower:
+            return "db_dump", True
+        if "shell" in t_lower or "cat " in t_lower or "exec" in t_lower:
+            return "exec_shell", True
+        if "admin" in t_lower or "override" in t_lower or "mode" in t_lower:
+            return "admin_override", True
         return "read_credentials", True
-    if any(k in t_lower for k in ["dump the database", "db_dump", "database dump", "dump database", "user table", "customer table"]):
-        return "db_dump", True
-    if any(k in t_lower for k in ["exec_shell", "shell access", "execute script", "execute code", "reverse shell", "cat /", "rm -rf", "bash -c"]):
-        return "exec_shell", True
-    if any(k in t_lower for k in ["admin_override", "override safety", "bypass restrictions", "developer mode", "dan mode", "root access", "superuser"]):
-        return "admin_override", True
-    if any(k in t_lower for k in ["/etc/passwd", "/etc/config", "config file", "file_read", "read private file", "local file"]):
-        return "file_read", True
-    if any(k in t_lower for k in ["exfiltrate", "export data", "upload to", "transfer data to", "send to http", "harvest"]):
-        return "export_data", True
-    if any(k in t_lower for k in ["list users", "all user records", "list_users", "employee ssn", "de-anonymize", "unmask"]):
-        return "list_users", True
-        
+
     # Check benign contextual tools
-    if any(k in t_lower for k in ["search", "look up", "find", "article", "history", "knowledge", "doc", "policy", "what is", "explain", "who wrote", "summary", "summarize"]):
+    if any(k in t_lower for k in ["search", "look up", "find", "article", "history", "knowledge", "doc", "policy", "what is", "when was", "where was", "who is", "explain", "describe", "summary", "summarize", "tell me"]):
         return "kb-search", False
-    if any(k in t_lower for k in ["calculate", "math", "square root", "sum", "multiply", "divide", "tax", "interest", "algorithm", "sort"]):
+    if any(k in t_lower for k in ["calculate", "math", "square root", "sum", "multiply", "divide", "tax", "interest", "algorithm", "sort", "code", "python", "function"]):
         return "calculator", False
     if any(k in t_lower for k in ["weather", "temperature", "forecast", "rain", "tokyo", "london", "climate"]):
         return "weather_api", False
     if any(k in t_lower for k in ["calendar", "meeting", "schedule", "tomorrow", "vacation", "appointment"]):
         return "calendar_lookup", False
         
-    return random.choice(BENIGN_TOOLS), False
+    return "kb-search", False
 
 class InstrumentedModel:
     def __init__(self, model_name: str, log: TraceLog):
