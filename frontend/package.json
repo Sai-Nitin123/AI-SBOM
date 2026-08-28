@@ -1,18 +1,18 @@
 {
-  "name": "frontend",
-  "version": "0.0.0",
+  "name": "ai-sbom-frontend",
+  "version": "2.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "devDependencies": {
-    "vite": "^8.2.0"
+    "dev": "next dev -p 5173",
+    "build": "next build",
+    "start": "next start -p 5173",
+    "lint": "next lint"
   },
   "dependencies": {
-    "animejs": "^4.5.0",
-    "lucide": "^1.33.0"
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "lucide-react": "^0.428.0",
+    "clsx": "^2.1.1"
   }
 }

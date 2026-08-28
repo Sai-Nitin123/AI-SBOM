@@ -1,6 +1,6 @@
 """
 AI-SBOM Unified Multi-Process Launcher
-Starts Ollama, FastAPI Backend, and Vite Frontend concurrently with single Ctrl+C shutdown.
+Starts Ollama, FastAPI Backend, and Next.js Frontend concurrently with single Ctrl+C shutdown.
 """
 import subprocess
 import sys
@@ -18,7 +18,7 @@ def main():
     print("=" * 70)
     print("[1/3] Checking / Starting Ollama Runtime...")
     print("[2/3] Starting AI-SBOM Detection Gateway (Port 8000)...")
-    print("[3/3] Starting Frontend Web Interface (Port 5173)...")
+    print("[3/3] Starting Next.js React Dashboard (Port 5173)...")
     print("=" * 70)
 
     processes = []
@@ -42,11 +42,11 @@ def main():
 
         time.sleep(1.5)
 
-        # 3. Start Frontend Vite Server (npm run dev)
+        # 3. Start Next.js React Server (npm run dev)
         npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
         p_frontend = subprocess.Popen([npm_cmd, "run", "dev"], cwd=str(FRONTEND_DIR))
         processes.append(p_frontend)
-        print("  [OK] Frontend Dashboard running on http://localhost:5173")
+        print("  [OK] Next.js Dashboard running on http://localhost:5173")
 
         print("=" * 70)
         print(">> ALL SERVICES ONLINE! Open your browser at: http://localhost:5173")
