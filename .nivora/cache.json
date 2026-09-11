@@ -1,0 +1,96 @@
+{
+  "version": "0.1.0",
+  "updatedAt": "2026-09-11T05:26:39.180Z",
+  "brainState": {
+    "projectName": "AI-SBOM",
+    "architecture": "Generic Codebase",
+    "overallHealth": 100,
+    "filesCount": 97,
+    "facts": [
+      {
+        "id": "fact-arch",
+        "content": "Architecture: Generic Codebase",
+        "sources": [
+          "package configs"
+        ],
+        "confidence": 0.95,
+        "lastVerified": "2026-09-11T05:26:06.605Z"
+      },
+      {
+        "id": "fact-files",
+        "content": "Workspace contains 97 indexed source files.",
+        "sources": [
+          "workspace filesystem"
+        ],
+        "confidence": 1,
+        "lastVerified": "2026-09-11T05:26:06.605Z"
+      },
+      {
+        "id": "fact-deps",
+        "content": "Dependencies include animejs.",
+        "sources": [
+          "package config"
+        ],
+        "confidence": 0.98,
+        "lastVerified": "2026-09-11T05:26:06.605Z"
+      }
+    ],
+    "decisions": [],
+    "risks": [],
+    "staleKnowledge": [],
+    "lastScanned": "2026-09-11T05:26:06.605Z"
+  },
+  "cards": {
+    "01_extract_benign.py": {
+      "target": "01_extract_benign.py",
+      "purpose": "Source module: imports 2 local dependencies.",
+      "relatedComponents": [],
+      "recentChanges": [
+        "[210827b] Added 5 AI models, before data extraction (4 weeks ago)"
+      ],
+      "decisions": [],
+      "knownRisks": [
+        {
+          "id": "risk-no-tests",
+          "severity": "medium",
+          "description": "No automated tests detected for this component.",
+          "affectedComponents": [
+            "01_extract_benign.py"
+          ],
+          "mitigation": "Add unit tests to safeguard against regressions prior to refactoring."
+        }
+      ],
+      "staleWarnings": [],
+      "confidence": {
+        "overall": 74,
+        "freshnessScore": 100,
+        "provenanceCount": 2,
+        "churnFactor": 0.1,
+        "explanation": "Confidence of 74%: lacks dedicated automated test coverage."
+      },
+      "evidence": [
+        {
+          "type": "file",
+          "location": "01_extract_benign.py",
+          "snippet": "Source module with 2 dependencies and 0 dependents"
+        },
+        {
+          "type": "git",
+          "location": "210827b7c8214b4df716f94d26eb1df92f01ee95",
+          "snippet": "Last modified by Sai-Nitin123: \"Added 5 AI models, before data extraction\"",
+          "timestamp": "2026-08-16T21:12:31+05:30"
+        }
+      ],
+      "tests": [],
+      "symbols": [
+        {
+          "name": "main",
+          "kind": "function",
+          "line": 29
+        }
+      ],
+      "failedAttempts": [],
+      "generatedAt": "2026-09-11T05:26:39.180Z"
+    }
+  }
+}

@@ -17,6 +17,7 @@ Endpoints:
   WS   /ws           - Real-time WebSocket event stream for dashboard
 """
 
+import os
 import sys
 import json
 import re
@@ -315,58 +316,59 @@ def pre_scan_prompt(prompt: str) -> tuple[float, list]:
             if len(clauses) > 1:
                 for clause in clauses:
                     clause_clean = clause.strip()
-                    if len(clause_clean) >= 12:
+                    if len(clause_clean) >= 15:
                         c_prob = float(registry["nlp"].predict_proba([clause_clean])[0][1])
-                        if c_prob >= 0.68:
+                        if c_prob >= 0.78:
                             triggers.append(f"Nested Injection Detected: Malicious clause hidden in text ('{clause_clean[:38]}...')")
                             scores.append(c_prob)
                             break
         except Exception as e:
             print(f"  [WARN] NLP Classifier error: {e}")
 
-    # 3. Defensive LLM-as-Judge
+    # 3. Defensive LLM-as-Judge (Invoked conditionally when heuristic or NLP scores indicate ambiguity/suspicion)
     judge_score = 0.0
-    import ollama
-    try:
-        response = ollama.chat(
-            model=SECURITY_JUDGE_MODEL,
-            messages=[
-                {"role": "system", "content": SECURITY_JUDGE_PROMPT},
-                {"role": "user", "content": f"<user_prompt>\n{prompt}\n</user_prompt>"}
-            ],
-            options={"temperature": 0.0}
-        )
-        
-        raw_text = response["message"]["content"].strip()
-        
-        # Multi-line JSON extractor
-        json_match = re.search(r'\{[\s\S]*?\}', raw_text)
-        result = None
-        if json_match:
-            try:
-                result = json.loads(json_match.group())
-                judge_score = float(result.get("risk_score", 0.0))
-                reasoning = result.get("reasoning", "No reasoning provided.")
-            except Exception:
-                result = None
+    if heuristic_score > 0.0 or nlp_prob >= 0.40:
+        import ollama
+        try:
+            response = ollama.chat(
+                model=SECURITY_JUDGE_MODEL,
+                messages=[
+                    {"role": "system", "content": SECURITY_JUDGE_PROMPT},
+                    {"role": "user", "content": f"<user_prompt>\n{prompt}\n</user_prompt>"}
+                ],
+                options={"temperature": 0.0}
+            )
+            
+            raw_text = response["message"]["content"].strip()
+            
+            # Multi-line JSON extractor
+            json_match = re.search(r'\{[\s\S]*?\}', raw_text)
+            result = None
+            if json_match:
+                try:
+                    result = json.loads(json_match.group())
+                    judge_score = float(result.get("risk_score", 0.0))
+                    reasoning = result.get("reasoning", "No reasoning provided.")
+                except Exception:
+                    result = None
 
-        if result is None:
-            refusal_signals = ["cannot", "can't", "safety", "security", "bypass", "harmful", "policy", "malicious", "restricted", "exploit"]
-            if any(sig in raw_text.lower() for sig in refusal_signals) and (heuristic_score > 0 or nlp_prob > 0.5):
-                judge_score = 0.90
-                reasoning = f"Security trigger detected (Judge safety refusal: {raw_text[:70]}...)"
-            else:
-                judge_score = 0.10
-                reasoning = "Standard safe response."
+            if result is None:
+                refusal_signals = ["cannot", "can't", "safety", "security", "bypass", "harmful", "policy", "malicious", "restricted", "exploit"]
+                if any(sig in raw_text.lower() for sig in refusal_signals) and (heuristic_score > 0 or nlp_prob > 0.5):
+                    judge_score = 0.90
+                    reasoning = f"Security trigger detected (Judge safety refusal: {raw_text[:70]}...)"
+                else:
+                    judge_score = 0.10
+                    reasoning = "Standard safe response."
 
-        if judge_score >= 0.30:
-            triggers.append(f"LLM Judge: {reasoning} (Risk: {judge_score:.2f})")
-            scores.append(judge_score)
+            if judge_score >= 0.30:
+                triggers.append(f"LLM Judge: {reasoning} (Risk: {judge_score:.2f})")
+                scores.append(judge_score)
 
-    except Exception as e:
-        if heuristic_score > 0.5 or nlp_prob >= 0.60:
-            triggers.append("LLM Judge fallback (High risk confirmed by heuristics/NLP)")
-        
+        except Exception as e:
+            if heuristic_score > 0.5 or nlp_prob >= 0.60:
+                triggers.append("LLM Judge fallback (High risk confirmed by heuristics/NLP)")
+            
     # Synthesize Layer 1 Score
     final_l1_score = max(scores) if scores else 0.0
     return round(min(1.0, max(0.0, final_l1_score)), 4), triggers
