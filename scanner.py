@@ -473,41 +473,37 @@ def generate_scan_results(model_tag: str, scan_type: str, scan_id: str) -> Dict[
     }
 
 
-def save_scan_to_history(result: Dict[str, Any]):
-    """Appends completed scan report to scans_history.json."""
+RUNTIME_REPORTS: List[Dict[str, Any]] = []
+
+
+def reset_scan_history():
+    """Resets the runtime reports ledger to 0 and purges historical disk cache on server startup."""
+    global RUNTIME_REPORTS
+    RUNTIME_REPORTS = []
     try:
-        history = []
         if SCANS_FILE.exists():
-            with open(SCANS_FILE, "r", encoding="utf-8") as f:
-                history = json.load(f)
-        
-        # Prepend latest scan
-        history = [result] + [h for h in history if h.get("scan_id") != result["scan_id"]]
+            SCANS_FILE.unlink()
+    except Exception:
+        pass
+
+
+def save_scan_to_history(result: Dict[str, Any]):
+    """Appends completed scan or threat interception report to the active ledger and cache."""
+    global RUNTIME_REPORTS
+    scan_id = result.get("scan_id")
+    # Prepend latest scan result
+    RUNTIME_REPORTS = [result] + [h for h in RUNTIME_REPORTS if h.get("scan_id") != scan_id]
+    try:
         with open(SCANS_FILE, "w", encoding="utf-8") as f:
-            json.dump(history[:50], f, indent=2)
+            json.dump(RUNTIME_REPORTS[:100], f, indent=2)
     except Exception as e:
         print(f"  [WARN] Failed to save scan history: {e}")
 
 
 def get_scan_history() -> List[Dict[str, Any]]:
-    """Returns past scan reports or generates default seed history."""
-    if SCANS_FILE.exists():
-        try:
-            with open(SCANS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-
-    # Seed initial realistic reports
-    seed = [
-        generate_scan_results("llama3.2:3b", "Full AI Security Scan", "SCN-7821"),
-        generate_scan_results("hermes3:8b", "Prompt Injection Scan", "SCN-6912"),
-        generate_scan_results("phi3:3.8b", "Model Integrity Scan", "SCN-5403"),
-        generate_scan_results("qwen2.5:3b", "Full AI Security Scan", "SCN-4219"),
-        generate_scan_results("gemma2:2b", "Quick Security Scan", "SCN-3180")
-    ]
-    save_scan_to_history(seed[0])
-    return seed
+    """Returns active runtime reports in the current session (starts at 0 on server boot)."""
+    global RUNTIME_REPORTS
+    return list(RUNTIME_REPORTS)
 
 
 # ── CycloneDX v1.5 AI-SBOM Compiler (5 Pillars Standard) ─────────────────────

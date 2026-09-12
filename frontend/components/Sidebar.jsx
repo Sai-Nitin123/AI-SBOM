@@ -89,26 +89,6 @@ export default function Sidebar({
           );
         })}
       </nav>
-
-      {/* Sidebar Bottom Health Widget */}
-      <div className="sidebar-bottom-health">
-        <div className="health-header">
-          <ShieldCheck className="health-ok-icon" size={15} />
-          <span className="health-label">System Health</span>
-        </div>
-        <p className="health-status-sub">All Systems Operational</p>
-        <div className="health-led-bar">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <span key={i} className="led-block active"></span>
-          ))}
-        </div>
-        <button
-          className="health-details-btn"
-          onClick={() => handleNav('settings')}
-        >
-          View Telemetry
-        </button>
-      </div>
     </aside>
   );
 }

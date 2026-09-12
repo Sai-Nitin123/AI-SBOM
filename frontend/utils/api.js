@@ -36,7 +36,7 @@ export async function fetchStats() {
     const res = await fetch(`${API_BASE}/stats`);
     if (res.ok) return await res.json();
   } catch {}
-  return { total_sessions: 147, flagged: 23, blocked: 7, allowed: 209 };
+  return { total_sessions: 0, flagged: 0, blocked: 0, allowed: 0 };
 }
 
 export async function detectPrompt(prompt, model = 'llama3.2:3b', isMalicious = false) {

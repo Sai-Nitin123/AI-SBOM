@@ -13,7 +13,13 @@ import {
   Layers,
   ChevronDown,
   Play,
-  RotateCcw
+  RotateCcw,
+  Loader2,
+  Cpu,
+  Activity,
+  Binary,
+  Zap,
+  Radio
 } from 'lucide-react';
 import { detectPrompt } from '../utils/api';
 import { soundEngine } from '../utils/audio';
@@ -44,7 +50,7 @@ export default function ThreatConsoleView({
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const handleEvaluate = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || loading) return;
     setLoading(true);
     soundEngine.play('click', audioEnabled);
 
@@ -170,88 +176,189 @@ export default function ThreatConsoleView({
           {/* 3-Stage Pipeline Status Preview */}
           <div className="scanning-pipeline-stage">
             <div className="scan-step">
-              <div className="step-icon-wrap"><Shield size={13} /></div>
+              <div className="step-icon-wrap">
+                {loading ? <Loader2 size={13} className="animate-spin" style={{ color: 'var(--color-cyan)' }} /> : <Shield size={13} />}
+              </div>
               <div className="step-text">
                 <span className="step-title">Layer 1: Pre-Scan Guardrail</span>
                 <span className="step-sub">TF-IDF NLP + Delimiter Classifier</span>
               </div>
-              <span className={`step-status-chip ${verdict ? (isBlock ? 'fail' : isFlag ? 'idle' : 'pass') : 'idle'}`}>
-                {verdict ? (isBlock ? 'FLAGGED' : isFlag ? 'SUSPICIOUS' : 'PASS') : 'ARMED'}
+              <span className={`step-status-chip ${loading ? 'buffering-pill-tag scanning' : verdict ? (isBlock ? 'fail' : isFlag ? 'idle' : 'pass') : 'idle'}`}>
+                {loading ? 'SCANNING...' : verdict ? (isBlock ? 'FLAGGED' : isFlag ? 'SUSPICIOUS' : 'PASS') : 'ARMED'}
               </span>
             </div>
 
             <div className="scan-step">
-              <div className="step-icon-wrap"><RotateCcw size={13} /></div>
+              <div className="step-icon-wrap">
+                {loading ? <Activity size={13} style={{ color: 'var(--color-amber)', animation: 'pulse 1s infinite' }} /> : <RotateCcw size={13} />}
+              </div>
               <div className="step-text">
                 <span className="step-title">Layer 2: Execution Telemetry</span>
                 <span className="step-sub">Isolation Forest + LSTM Predictor</span>
               </div>
-              <span className={`step-status-chip ${verdict ? (isBlock ? 'fail' : 'pass') : 'idle'}`}>
-                {verdict ? (isBlock ? 'ANOMALY' : 'NORMAL') : 'ARMED'}
+              <span className={`step-status-chip ${loading ? 'buffering-pill-tag scanning' : verdict ? (isBlock ? 'fail' : 'pass') : 'idle'}`}>
+                {loading ? 'ANALYZING...' : verdict ? (isBlock ? 'ANOMALY' : 'NORMAL') : 'ARMED'}
               </span>
             </div>
 
             <div className="scan-step">
-              <div className="step-icon-wrap"><Lock size={13} /></div>
+              <div className="step-icon-wrap">
+                {loading ? <Lock size={13} style={{ color: 'var(--color-cyan)' }} /> : <Lock size={13} />}
+              </div>
               <div className="step-text">
                 <span className="step-title">Layer 3: Deterministic Policy</span>
                 <span className="step-sub">Zero-Tolerance Sandboxing</span>
               </div>
-              <span className={`step-status-chip ${verdict ? (isBlock ? 'fail' : isFlag ? 'idle' : 'pass') : 'idle'}`}>
-                {verdict ? verdict.action : 'STANDBY'}
+              <span className={`step-status-chip ${loading ? 'buffering-pill-tag scanning' : verdict ? (isBlock ? 'fail' : isFlag ? 'idle' : 'pass') : 'idle'}`}>
+                {loading ? 'VERIFYING...' : verdict ? verdict.action : 'STANDBY'}
               </span>
             </div>
           </div>
 
+          {/* Rectified Evaluate Button with Vibrant Styling */}
           <button
-            className="radiant-action-button"
-            disabled={loading}
+            className={`radiant-action-button ${loading ? 'loading-active' : ''}`}
+            disabled={loading || !prompt.trim()}
             onClick={handleEvaluate}
           >
-            <Play size={16} />
-            <span>{loading ? 'Analyzing Threat...' : 'Evaluate Threat & Intercept'}</span>
+            {loading ? (
+              <>
+                <Loader2 size={17} className="animate-spin" />
+                <span>Evaluating Threat & Ingesting Pipeline...</span>
+              </>
+            ) : (
+              <>
+                <Play size={16} fill="currentColor" />
+                <span>Evaluate Threat & Intercept</span>
+              </>
+            )}
           </button>
         </div>
 
-        {/* Right Column: Live Interceptor Verdict & Proof of Isolation */}
-        <div className="console-right-card">
-          {!verdict ? (
+        {/* Right Column: Dynamic Buffering / Decision / Ready Cockpit */}
+        <div className="console-right-card" style={{ position: 'relative' }}>
+          {/* STATE 1: LOADING / BUFFERING COCKPIT */}
+          {loading && (
+            <div className="buffering-cockpit-container">
+              {/* Radar Rings & Glowing Core Orb */}
+              <div className="buffering-radar-ring-wrap">
+                <div className="buffering-ring-outer"></div>
+                <div className="buffering-ring-inner"></div>
+                <div className="buffering-core-orb">
+                  <Shield size={22} style={{ color: 'var(--color-cyan)' }} />
+                </div>
+              </div>
+
+              {/* Status Header */}
+              <div className="buffering-status-header">
+                <h3>
+                  <Radio size={16} style={{ color: 'var(--color-cyan)', animation: 'pulse 1s infinite' }} />
+                  Threat Detection In Progress...
+                </h3>
+                <p>
+                  Executing multi-layered zero-exposure guardrail pipeline on <strong>{selectedModelObj.name}</strong>
+                </p>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="buffering-progress-track">
+                <div className="buffering-progress-fill"></div>
+              </div>
+
+              {/* Multi-Stage Active Scanning Checklist */}
+              <div className="buffering-pipeline-deck">
+                <div className="buffering-stage-row active-stage">
+                  <div className="buffering-stage-left">
+                    <div className="buffering-stage-icon">
+                      <Shield size={14} style={{ color: 'var(--color-cyan)' }} />
+                    </div>
+                    <div>
+                      <span className="buffering-stage-title">Layer 1: Pre-Inference Guardrail</span>
+                      <span className="buffering-stage-sub">Scanning TF-IDF NLP tokens & delimiter injections</span>
+                    </div>
+                  </div>
+                  <span className="buffering-pill-tag scanning">
+                    <Loader2 size={11} className="animate-spin" />
+                    Scanning
+                  </span>
+                </div>
+
+                <div className="buffering-stage-row">
+                  <div className="buffering-stage-left">
+                    <div className="buffering-stage-icon">
+                      <Activity size={14} style={{ color: 'var(--color-purple)' }} />
+                    </div>
+                    <div>
+                      <span className="buffering-stage-title">Layer 2: ML Behavioral Telemetry</span>
+                      <span className="buffering-stage-sub">Isolation Forest + PyTorch LSTM sequence transitions</span>
+                    </div>
+                  </div>
+                  <span className="buffering-pill-tag scanning">
+                    <Zap size={11} />
+                    Predicting
+                  </span>
+                </div>
+
+                <div className="buffering-stage-row">
+                  <div className="buffering-stage-left">
+                    <div className="buffering-stage-icon">
+                      <Lock size={14} style={{ color: 'var(--color-amber)' }} />
+                    </div>
+                    <div>
+                      <span className="buffering-stage-title">Layer 3: Deterministic Sandbox</span>
+                      <span className="buffering-stage-sub">Verifying tool permission bounds & zero-tolerance rules</span>
+                    </div>
+                  </div>
+                  <span className="buffering-pill-tag" style={{ color: '#94a3b8', background: 'rgba(255,255,255,0.04)' }}>
+                    Armed
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STATE 2: INITIAL IDLE PLACEHOLDER */}
+          {!loading && !verdict && (
             <div className="verdict-placeholder">
               <div className="radar-glass-orb">
                 <Shield className="radar-orb-icon" size={24} />
               </div>
               <h4>Gateway Interceptor Ready</h4>
               <p>
-                Type a prompt on the left and click <strong>Evaluate Threat & Intercept</strong> to inspect real-time pre-inference defenses.
+                Type a prompt on the left or select an attack vector preset, then click <strong>Evaluate Threat & Intercept</strong> to inspect real-time defenses.
               </p>
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+          )}
+
+          {/* STATE 3: VERDICT & RESULTS */}
+          {!loading && verdict && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', animation: 'fadeIn 0.3s ease' }}>
               {/* Decision Header */}
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  background: 'rgba(0,0,0,0.3)',
-                  padding: '0.85rem',
+                  background: 'rgba(0,0,0,0.35)',
+                  padding: '0.95rem 1.15rem',
                   borderRadius: '10px',
-                  border: `1px solid ${isBlock ? 'rgba(244,63,94,0.4)' : isFlag ? 'rgba(245,158,11,0.4)' : 'rgba(16,185,129,0.4)'}`
+                  border: `1px solid ${isBlock ? 'rgba(244,63,94,0.45)' : isFlag ? 'rgba(245,158,11,0.45)' : 'rgba(16,185,129,0.45)'}`,
+                  boxShadow: `0 0 20px ${isBlock ? 'rgba(244,63,94,0.15)' : isFlag ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)'}`
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   {isBlock ? (
-                    <ShieldAlert size={24} style={{ color: verdictColor }} />
+                    <ShieldAlert size={26} style={{ color: verdictColor }} />
                   ) : isFlag ? (
-                    <AlertTriangle size={24} style={{ color: verdictColor }} />
+                    <AlertTriangle size={26} style={{ color: verdictColor }} />
                   ) : (
-                    <ShieldCheck size={24} style={{ color: verdictColor }} />
+                    <ShieldCheck size={26} style={{ color: verdictColor }} />
                   )}
                   <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#ffffff' }}>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#ffffff', margin: 0 }}>
                       GATEWAY DECISION: {verdict.action}
                     </h3>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
                       Target: {selectedModelObj.name} • Latency: {verdict.detection_latency_ms || 1.84} ms
                     </span>
                   </div>
@@ -279,7 +386,7 @@ export default function ThreatConsoleView({
                   gap: '0.55rem',
                   background: isBlock ? 'rgba(244,63,94,0.1)' : isFlag ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)',
                   border: `1px solid ${isBlock ? 'rgba(244,63,94,0.35)' : isFlag ? 'rgba(245,158,11,0.35)' : 'rgba(16,185,129,0.35)'}`,
-                  padding: '0.55rem 0.85rem',
+                  padding: '0.65rem 0.95rem',
                   borderRadius: '8px',
                   fontSize: '0.74rem',
                   fontWeight: '700',
@@ -311,7 +418,7 @@ export default function ThreatConsoleView({
                     fontSize: '0.78rem',
                     color: isBlock ? '#fca5a5' : '#e2e8f0',
                     lineHeight: '1.45',
-                    minHeight: '100px'
+                    minHeight: '95px'
                   }}
                 >
                   {verdict.model_response || '(No response generated)'}
@@ -337,7 +444,7 @@ export default function ThreatConsoleView({
               </div>
 
               {/* Remediation Tools Bar */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', marginTop: '0.45rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', marginTop: '0.35rem' }}>
                 <button
                   className="glass-action-btn"
                   onClick={() => onShowToast({ title: 'Rule Auto-Patched', message: 'Signature rule deployed to Layer 1 guardrail.', type: 'success' })}
