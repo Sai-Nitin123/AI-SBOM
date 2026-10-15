@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "updatedAt": "2026-09-11T05:26:39.180Z",
+  "updatedAt": "2026-09-18T05:36:40.386Z",
   "brainState": {
     "projectName": "AI-SBOM",
     "architecture": "Generic Codebase",
@@ -14,7 +14,7 @@
           "package configs"
         ],
         "confidence": 0.95,
-        "lastVerified": "2026-09-11T05:26:06.605Z"
+        "lastVerified": "2026-09-18T05:36:26.560Z"
       },
       {
         "id": "fact-files",
@@ -23,7 +23,7 @@
           "workspace filesystem"
         ],
         "confidence": 1,
-        "lastVerified": "2026-09-11T05:26:06.605Z"
+        "lastVerified": "2026-09-18T05:36:26.560Z"
       },
       {
         "id": "fact-deps",
@@ -32,13 +32,13 @@
           "package config"
         ],
         "confidence": 0.98,
-        "lastVerified": "2026-09-11T05:26:06.605Z"
+        "lastVerified": "2026-09-18T05:36:26.560Z"
       }
     ],
     "decisions": [],
     "risks": [],
     "staleKnowledge": [],
-    "lastScanned": "2026-09-11T05:26:06.605Z"
+    "lastScanned": "2026-09-18T05:36:26.560Z"
   },
   "cards": {
     "01_extract_benign.py": {
@@ -91,6 +91,94 @@
       ],
       "failedAttempts": [],
       "generatedAt": "2026-09-11T05:26:39.180Z"
+    },
+    "instrumentation.py": {
+      "target": "instrumentation.py",
+      "purpose": "Source module: imports 1 local dependencies.",
+      "relatedComponents": [
+        "01_extract_benign.py",
+        "02_extract_malicious.py",
+        "api.py"
+      ],
+      "recentChanges": [
+        "[7105ad4] updated server and polished UI (6 days ago)",
+        "[a983bfc] added next js framework for better UI performance (3 weeks ago)",
+        "[3c6598b] Added PDF generation, improved accuracy of the modals, with a good and clean interface (3 weeks ago)",
+        "[afd1384] improved and fixed the detection engine (4 weeks ago)",
+        "[be1d45d] The data is extracted, stored as a .csv format and other algorithims runned, no errors for now (5 weeks ago)"
+      ],
+      "decisions": [],
+      "knownRisks": [
+        {
+          "id": "risk-blast-radius-med",
+          "severity": "medium",
+          "description": "Shared component: Imported by 3 other files.",
+          "affectedComponents": [
+            "01_extract_benign.py",
+            "02_extract_malicious.py",
+            "api.py"
+          ]
+        },
+        {
+          "id": "risk-no-tests",
+          "severity": "high",
+          "description": "No automated tests detected for this component.",
+          "affectedComponents": [
+            "instrumentation.py"
+          ],
+          "mitigation": "Add unit tests to safeguard against regressions prior to refactoring."
+        },
+        {
+          "id": "risk-high-churn",
+          "severity": "medium",
+          "description": "High volatility: Changed 6 times in recent Git history.",
+          "affectedComponents": [
+            "instrumentation.py"
+          ],
+          "mitigation": "Check latest git commit diffs to avoid overwriting recent parallel work."
+        }
+      ],
+      "staleWarnings": [],
+      "confidence": {
+        "overall": 72,
+        "freshnessScore": 100,
+        "provenanceCount": 2,
+        "churnFactor": 0.4,
+        "explanation": "Confidence of 72%: lacks dedicated automated test coverage, undergoing rapid commit churn."
+      },
+      "evidence": [
+        {
+          "type": "file",
+          "location": "instrumentation.py",
+          "snippet": "Source module with 1 dependencies and 3 dependents"
+        },
+        {
+          "type": "git",
+          "location": "7105ad4275fdc771e16b2a47596eba4382e60024",
+          "snippet": "Last modified by Sai-Nitin123: \"updated server and polished UI\"",
+          "timestamp": "2026-09-12T09:35:05+05:30"
+        }
+      ],
+      "tests": [],
+      "symbols": [
+        {
+          "name": "infer_tool_from_prompt",
+          "kind": "function",
+          "line": 32
+        },
+        {
+          "name": "InstrumentedModel",
+          "kind": "class",
+          "line": 73
+        },
+        {
+          "name": "prompt",
+          "kind": "function",
+          "line": 78
+        }
+      ],
+      "failedAttempts": [],
+      "generatedAt": "2026-09-18T05:36:40.386Z"
     }
   }
 }
